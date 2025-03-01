@@ -1,11 +1,20 @@
 const db = require('../config/db');
+const fs = require('fs');
+const path = require('path');
 
 // Get teacher profile
 exports.getProfile = async (req, res) => {
   try {
     const teacherId = req.user.id;
     
-    const query = 'SELECT id, first_name, middle_name, last_name, faculty_id, username FROM teachers WHERE id = ?';
+    const query = `
+      SELECT t.id, t.first_name, t.middle_name, t.last_name, t.faculty_id, t.username, 
+             t.email, t.phone,
+             pt.image_url as profile_image
+      FROM teachers t
+      LEFT JOIN profile_teacher pt ON t.id = pt.teacher_id
+      WHERE t.id = ?
+    `;
     
     db.execute(query, [teacherId], (err, results) => {
       if (err) {
@@ -18,18 +27,136 @@ exports.getProfile = async (req, res) => {
       
       const teacher = results[0];
       
+      // Construct full URL for profile image if it exists
+      let profileImageUrl = null;
+      if (teacher.profile_image) {
+        profileImageUrl = `${req.protocol}://${req.get('host')}/uploads/profiles/${path.basename(teacher.profile_image)}`;
+      }
+      
       res.json({
         id: teacher.id,
         firstName: teacher.first_name,
         middleName: teacher.middle_name,
         lastName: teacher.last_name,
         facultyId: teacher.faculty_id,
-        username: teacher.username
+        username: teacher.username,
+        email: teacher.email,
+        phone: teacher.phone,
+        profileImage: profileImageUrl
       });
     });
   } catch (error) {
     console.error('Error in getProfile:', error);
     res.status(500).json({ message: 'Failed to fetch profile', error: error.message });
+  }
+};
+
+// Upload profile picture
+exports.uploadProfilePicture = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded' });
+    }
+    
+    const teacherId = req.user.id;
+    const imagePath = req.file.path;
+    const relativeImagePath = path.relative(path.join(__dirname, '..'), imagePath).replace(/\\/g, '/');
+    
+    // Check if teacher already has a profile picture
+    const checkQuery = 'SELECT id, image_url FROM profile_teacher WHERE teacher_id = ?';
+    
+    db.execute(checkQuery, [teacherId], (err, results) => {
+      if (err) {
+        return res.status(500).json({ message: 'Error checking profile picture', error: err.message });
+      }
+      
+      // If teacher already has a profile picture, update it
+      if (results.length > 0) {
+        const oldProfilePic = results[0].image_url;
+        const oldFilePath = path.join(__dirname, '..', oldProfilePic);
+        
+        // Delete old file if it exists
+        if (fs.existsSync(oldFilePath)) {
+          fs.unlinkSync(oldFilePath);
+        }
+        
+        const updateQuery = 'UPDATE profile_teacher SET image_url = ? WHERE teacher_id = ?';
+        
+        db.execute(updateQuery, [relativeImagePath, teacherId], (err, result) => {
+          if (err) {
+            return res.status(500).json({ message: 'Error updating profile picture', error: err.message });
+          }
+          
+          const imageUrl = `${req.protocol}://${req.get('host')}/${relativeImagePath}`;
+          
+          res.status(200).json({
+            message: 'Profile picture updated successfully',
+            imageUrl: imageUrl
+          });
+        });
+      } else {
+        // Insert new profile picture record
+        const insertQuery = 'INSERT INTO profile_teacher (teacher_id, image_url) VALUES (?, ?)';
+        
+        db.execute(insertQuery, [teacherId, relativeImagePath], (err, result) => {
+          if (err) {
+            return res.status(500).json({ message: 'Error uploading profile picture', error: err.message });
+          }
+          
+          const imageUrl = `${req.protocol}://${req.get('host')}/${relativeImagePath}`;
+          
+          res.status(201).json({
+            message: 'Profile picture uploaded successfully',
+            imageUrl: imageUrl
+          });
+        });
+      }
+    });
+  } catch (error) {
+    console.error('Error in uploadProfilePicture:', error);
+    res.status(500).json({ message: 'Failed to upload profile picture', error: error.message });
+  }
+};
+
+// Delete profile picture
+exports.deleteProfilePicture = async (req, res) => {
+  try {
+    const teacherId = req.user.id;
+    
+    // Get current profile picture info
+    const query = 'SELECT id, image_url FROM profile_teacher WHERE teacher_id = ?';
+    
+    db.execute(query, [teacherId], (err, results) => {
+      if (err) {
+        return res.status(500).json({ message: 'Error getting profile picture', error: err.message });
+      }
+      
+      if (results.length === 0) {
+        return res.status(404).json({ message: 'No profile picture found' });
+      }
+      
+      const profilePicture = results[0];
+      const filePath = path.join(__dirname, '..', profilePicture.image_url);
+      
+      // Delete file if it exists
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+      
+      // Delete record from database
+      const deleteQuery = 'DELETE FROM profile_teacher WHERE id = ?';
+      
+      db.execute(deleteQuery, [profilePicture.id], (err, result) => {
+        if (err) {
+          return res.status(500).json({ message: 'Error deleting profile picture record', error: err.message });
+        }
+        
+        res.json({ message: 'Profile picture deleted successfully' });
+      });
+    });
+  } catch (error) {
+    console.error('Error in deleteProfilePicture:', error);
+    res.status(500).json({ message: 'Failed to delete profile picture', error: error.message });
   }
 };
 
@@ -478,5 +605,44 @@ exports.generateSubjectKey = async (req, res) => {
   } catch (error) {
     console.error('Error in generateSubjectKey:', error);
     res.status(500).json({ message: 'Failed to generate key code', error: error.message });
+  }
+};
+
+// Update teacher profile
+exports.updateProfile = async (req, res) => {
+  try {
+    const teacherId = req.user.id;
+    const { email, phone } = req.body;
+    
+    // Validate email format if provided
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ message: 'Invalid email format' });
+    }
+    
+    // Update the teacher profile
+    const query = `
+      UPDATE teachers 
+      SET 
+        email = ?,
+        phone = ?
+      WHERE id = ?
+    `;
+    
+    db.execute(query, [email, phone, teacherId], (err, result) => {
+      if (err) {
+        return res.status(500).json({ message: 'Error updating profile', error: err.message });
+      }
+      
+      res.json({
+        message: 'Profile updated successfully',
+        updates: {
+          email,
+          phone
+        }
+      });
+    });
+  } catch (error) {
+    console.error('Error in updateProfile:', error);
+    res.status(500).json({ message: 'Failed to update profile', error: error.message });
   }
 }; 

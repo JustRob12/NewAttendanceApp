@@ -11,6 +11,8 @@ CREATE TABLE IF NOT EXISTS teachers (
   faculty_id VARCHAR(20) UNIQUE NOT NULL,
   username VARCHAR(50) UNIQUE NOT NULL,
   password VARCHAR(255) NOT NULL,
+  email VARCHAR(100),
+  phone VARCHAR(20),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -45,6 +47,15 @@ CREATE TABLE IF NOT EXISTS subjects (
   schedule VARCHAR(100) NOT NULL,
   teacher_id INT NOT NULL,
   key_code VARCHAR(10) NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (teacher_id) REFERENCES teachers(id)
+);
+
+-- Create profile_teacher table
+CREATE TABLE IF NOT EXISTS profile_teacher (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  teacher_id INT NOT NULL,
+  image_url VARCHAR(255) NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (teacher_id) REFERENCES teachers(id)
 );

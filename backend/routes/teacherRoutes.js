@@ -2,12 +2,16 @@ const express = require('express');
 const router = express.Router();
 const teacherController = require('../controllers/teacherController');
 const auth = require('../middleware/auth');
+const upload = require('../utils/uploadConfig');
 
 // Apply authentication middleware to all routes
 router.use(auth.authenticateToken, auth.isTeacher);
 
-// Teacher profile route
+// Teacher profile routes
 router.get('/profile', teacherController.getProfile);
+router.post('/profile/update', teacherController.updateProfile);
+router.post('/profile/upload-picture', upload.single('profilePicture'), teacherController.uploadProfilePicture);
+router.delete('/profile/delete-picture', teacherController.deleteProfilePicture);
 
 // Classes routes
 router.get('/classes', teacherController.getClasses);
