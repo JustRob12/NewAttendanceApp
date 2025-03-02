@@ -48,6 +48,81 @@ const api = {
     }
   },
 
+  // Student API endpoints
+  student: {
+    // Get student profile
+    getProfile: async (token) => {
+      try {
+        const response = await axios.get(`${API_URL}/student/profile`, {
+          headers: createAuthHeader(token)
+        });
+        return response.data;
+      } catch (error) {
+        console.error('Get student profile API error:', error.response || error);
+        throw error.response ? error.response.data : { message: 'Network error' };
+      }
+    },
+
+    // Upload profile picture
+    uploadProfilePicture: async (token, formData) => {
+      try {
+        const response = await axios.post(`${API_URL}/student/profile/upload-picture`, formData, {
+          headers: {
+            ...createAuthHeader(token),
+            'Content-Type': 'multipart/form-data'
+          }
+        });
+        return response.data;
+      } catch (error) {
+        console.error('Upload profile picture API error:', error.response || error);
+        throw error.response ? error.response.data : { message: 'Network error' };
+      }
+    },
+
+    // Delete profile picture
+    deleteProfilePicture: async (token) => {
+      try {
+        const response = await axios.delete(`${API_URL}/student/profile/delete-picture`, {
+          headers: createAuthHeader(token)
+        });
+        return response.data;
+      } catch (error) {
+        console.error('Delete profile picture API error:', error.response || error);
+        throw error.response ? error.response.data : { message: 'Network error' };
+      }
+    },
+
+    // Get student's classes
+    getClasses: async (token) => {
+      try {
+        const response = await axios.get(`${API_URL}/student/classes`, {
+          headers: createAuthHeader(token)
+        });
+        return response.data;
+      } catch (error) {
+        console.error('Get student classes API error:', error.response || error);
+        throw error.response ? error.response.data : { message: 'Network error' };
+      }
+    },
+
+    // Get student's attendance records
+    getAttendance: async (token, classId = null) => {
+      try {
+        const url = classId 
+          ? `${API_URL}/student/attendance/${classId}`
+          : `${API_URL}/student/attendance`;
+          
+        const response = await axios.get(url, {
+          headers: createAuthHeader(token)
+        });
+        return response.data;
+      } catch (error) {
+        console.error('Get attendance API error:', error.response || error);
+        throw error.response ? error.response.data : { message: 'Network error' };
+      }
+    }
+  },
+
   // Teacher API endpoints
   teacher: {
     // Get teacher profile

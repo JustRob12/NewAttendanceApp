@@ -60,6 +60,15 @@ CREATE TABLE IF NOT EXISTS profile_teacher (
   FOREIGN KEY (teacher_id) REFERENCES teachers(id)
 );
 
+-- Create profile_students table
+CREATE TABLE IF NOT EXISTS profile_students (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  student_id INT NOT NULL,
+  image_url VARCHAR(255) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (student_id) REFERENCES students(id)
+);
+
 -- Create class_students junction table
 CREATE TABLE IF NOT EXISTS class_students (
   class_id INT NOT NULL,

@@ -10,6 +10,12 @@ router.use(isStudent);
 // Get student profile
 router.get('/profile', studentController.getProfile);
 
+// Upload profile picture
+router.post('/profile/upload-picture', studentController.uploadProfilePicture);
+
+// Delete profile picture
+router.delete('/profile/delete-picture', studentController.deleteProfilePicture);
+
 // Get student's classes
 router.get('/classes', studentController.getClasses);
 

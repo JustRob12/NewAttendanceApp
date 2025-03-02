@@ -31,8 +31,7 @@ export default function App() {
             name="StudentDashboard" 
             component={StudentDashboard} 
             options={{ 
-              title: 'Student Dashboard',
-              headerLeft: null,
+              headerShown: false,
               gestureEnabled: false
             }}
           />
