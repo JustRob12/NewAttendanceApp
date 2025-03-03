@@ -342,6 +342,75 @@ exports.recordAttendance = async (req, res) => {
   }
 };
 
+// Record attendance for a subject (single student)
+exports.recordSubjectAttendance = async (req, res) => {
+  try {
+    const teacherId = req.user.id;
+    const subjectId = req.params.subjectId;
+    const { studentId, date, status, notes } = req.body;
+    
+    // Validate input
+    if (!studentId || !date || !status) {
+      return res.status(400).json({ message: 'Student ID, date, and status are required' });
+    }
+    
+    if (!['present', 'absent', 'late'].includes(status)) {
+      return res.status(400).json({ message: 'Status must be "present", "absent", or "late"' });
+    }
+    
+    // Check if the subject belongs to the teacher
+    const checkSubjectQuery = 'SELECT id FROM subjects WHERE id = ? AND teacher_id = ?';
+    db.execute(checkSubjectQuery, [subjectId, teacherId], (err, results) => {
+      if (err) {
+        return res.status(500).json({ message: 'Database error', error: err.message });
+      }
+      
+      if (results.length === 0) {
+        return res.status(404).json({ message: 'Subject not found or not owned by this teacher' });
+      }
+      
+      // Check if a record already exists for this student on this date
+      const checkExistingQuery = 'SELECT id FROM subject_attendance WHERE subject_id = ? AND student_id = ? AND date = ?';
+      db.execute(checkExistingQuery, [subjectId, studentId, date], (checkErr, checkResults) => {
+        if (checkErr) {
+          return res.status(500).json({ message: 'Error checking existing records', error: checkErr.message });
+        }
+        
+        if (checkResults.length > 0) {
+          // Update existing record
+          const updateQuery = 'UPDATE subject_attendance SET status = ?, notes = ? WHERE id = ?';
+          db.execute(updateQuery, [status, notes || null, checkResults[0].id], (updateErr) => {
+            if (updateErr) {
+              return res.status(500).json({ message: 'Error updating attendance', error: updateErr.message });
+            }
+            
+            res.status(200).json({ 
+              message: 'Attendance updated successfully',
+              attendanceId: checkResults[0].id
+            });
+          });
+        } else {
+          // Insert new record
+          const insertQuery = 'INSERT INTO subject_attendance (student_id, teacher_id, subject_id, date, status, notes) VALUES (?, ?, ?, ?, ?, ?)';
+          db.execute(insertQuery, [studentId, teacherId, subjectId, date, status, notes || null], (insertErr, insertResult) => {
+            if (insertErr) {
+              return res.status(500).json({ message: 'Error recording attendance', error: insertErr.message });
+            }
+            
+            res.status(201).json({ 
+              message: 'Attendance recorded successfully',
+              attendanceId: insertResult.insertId
+            });
+          });
+        }
+      });
+    });
+  } catch (error) {
+    console.error('Error in recordSubjectAttendance:', error);
+    res.status(500).json({ message: 'Failed to record attendance', error: error.message });
+  }
+};
+
 // Get teacher's subjects
 exports.getSubjects = async (req, res) => {
   try {
@@ -349,7 +418,7 @@ exports.getSubjects = async (req, res) => {
     
     const query = `
       SELECT s.id, s.subject_code, s.description, s.schedule, s.key_code,
-             (SELECT COUNT(*) FROM subject_students WHERE subject_id = s.id) as student_count
+             (SELECT COUNT(*) FROM subject_enrollments WHERE subject_id = s.id) as student_count
       FROM subjects s
       WHERE s.teacher_id = ?
       ORDER BY s.subject_code
@@ -425,10 +494,10 @@ exports.getSubjectStudents = async (req, res) => {
       
       // Get students in the subject
       const query = `
-        SELECT s.id, s.first_name, s.middle_name, s.last_name, s.student_id, s.course
+        SELECT s.id, s.first_name, s.middle_name, s.last_name, s.student_id, s.course, se.enrolled_at
         FROM students s
-        JOIN subject_students ss ON s.id = ss.student_id
-        WHERE ss.subject_id = ?
+        JOIN subject_enrollments se ON s.id = se.student_id
+        WHERE se.subject_id = ?
         ORDER BY s.last_name, s.first_name
       `;
       
@@ -443,7 +512,8 @@ exports.getSubjectStudents = async (req, res) => {
           middleName: student.middle_name,
           lastName: student.last_name,
           studentId: student.student_id,
-          course: student.course
+          course: student.course,
+          enrolledAt: student.enrolled_at
         }));
         
         res.json(students);
@@ -644,5 +714,67 @@ exports.updateProfile = async (req, res) => {
   } catch (error) {
     console.error('Error in updateProfile:', error);
     res.status(500).json({ message: 'Failed to update profile', error: error.message });
+  }
+};
+
+// Get attendance records for a subject
+exports.getSubjectAttendance = async (req, res) => {
+  try {
+    const teacherId = req.user.id;
+    const { subjectId } = req.params;
+    const { date } = req.query;
+    
+    // First verify that this subject belongs to the teacher
+    const verifyQuery = 'SELECT id FROM subjects WHERE id = ? AND teacher_id = ?';
+    
+    db.execute(verifyQuery, [subjectId, teacherId], (err, results) => {
+      if (err) {
+        return res.status(500).json({ message: 'Error verifying subject', error: err.message });
+      }
+      
+      if (results.length === 0) {
+        return res.status(403).json({ message: 'Unauthorized: This subject does not belong to you' });
+      }
+      
+      // Build the query based on whether a date is provided
+      let query = `
+        SELECT sa.id, sa.student_id, sa.date, sa.status, sa.notes, sa.created_at,
+               s.first_name, s.middle_name, s.last_name, s.student_id as student_number
+        FROM subject_attendance sa
+        JOIN students s ON sa.student_id = s.id
+        WHERE sa.subject_id = ? AND sa.teacher_id = ?
+      `;
+      
+      const queryParams = [subjectId, teacherId];
+      
+      if (date) {
+        query += ' AND sa.date = ?';
+        queryParams.push(date);
+      }
+      
+      query += ' ORDER BY sa.date DESC, s.last_name, s.first_name';
+      
+      db.execute(query, queryParams, (err, results) => {
+        if (err) {
+          return res.status(500).json({ message: 'Error fetching attendance records', error: err.message });
+        }
+        
+        const attendanceRecords = results.map(record => ({
+          id: record.id,
+          studentId: record.student_id,
+          studentName: `${record.first_name} ${record.middle_name ? record.middle_name + ' ' : ''}${record.last_name}`,
+          studentNumber: record.student_number,
+          date: record.date,
+          status: record.status,
+          notes: record.notes,
+          createdAt: record.created_at
+        }));
+        
+        res.json(attendanceRecords);
+      });
+    });
+  } catch (error) {
+    console.error('Error in getSubjectAttendance:', error);
+    res.status(500).json({ message: 'Failed to fetch attendance records', error: error.message });
   }
 }; 

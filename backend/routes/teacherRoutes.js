@@ -26,5 +26,7 @@ router.get('/subjects/:subjectId/students', teacherController.getSubjectStudents
 router.put('/subjects/:subjectId', teacherController.updateSubject);
 router.delete('/subjects/:subjectId', teacherController.deleteSubject);
 router.post('/subjects/:subjectId/generate-key', teacherController.generateSubjectKey);
+router.post('/subjects/:subjectId/attendance', teacherController.recordSubjectAttendance);
+router.get('/subjects/:subjectId/attendance', teacherController.getSubjectAttendance);
 
 module.exports = router; 

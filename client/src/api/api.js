@@ -2,7 +2,7 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Set the base URL for API requests
-const API_URL = 'http://192.168.1.9:5000/api'; // Use your computer's IP address
+const API_URL = 'http://10.20.0.36:5000/api'; // Use your computer's IP address
 
 // Helper function to create headers with authentication token
 const createAuthHeader = (token) => {
@@ -118,6 +118,47 @@ const api = {
         return response.data;
       } catch (error) {
         console.error('Get attendance API error:', error.response || error);
+        throw error.response ? error.response.data : { message: 'Network error' };
+      }
+    },
+    
+    // Get enrolled subjects
+    getEnrolledSubjects: async (token) => {
+      try {
+        const response = await axios.get(`${API_URL}/student/subjects`, {
+          headers: createAuthHeader(token)
+        });
+        return response.data;
+      } catch (error) {
+        console.error('Get enrolled subjects API error:', error.response || error);
+        throw error.response ? error.response.data : { message: 'Network error' };
+      }
+    },
+    
+    // Search for a subject by key code
+    searchSubjectByKey: async (token, keyCode) => {
+      try {
+        const response = await axios.post(`${API_URL}/student/subjects/search`, 
+          { key_code: keyCode },
+          { headers: createAuthHeader(token) }
+        );
+        return response.data;
+      } catch (error) {
+        console.error('Search subject API error:', error.response || error);
+        throw error.response ? error.response.data : { message: 'Network error' };
+      }
+    },
+    
+    // Enroll in a subject
+    enrollInSubject: async (token, subjectId) => {
+      try {
+        const response = await axios.post(`${API_URL}/student/subjects/enroll`, 
+          { subjectId },
+          { headers: createAuthHeader(token) }
+        );
+        return response.data;
+      } catch (error) {
+        console.error('Enroll in subject API error:', error.response || error);
         throw error.response ? error.response.data : { message: 'Network error' };
       }
     }
@@ -298,6 +339,37 @@ const api = {
         });
         return response.data;
       } catch (error) {
+        throw error.response ? error.response.data : { message: 'Network error' };
+      }
+    },
+    
+    // Record attendance for a subject
+    recordSubjectAttendance: async (token, subjectId, attendanceData) => {
+      try {
+        const response = await axios.post(`${API_URL}/teacher/subjects/${subjectId}/attendance`, attendanceData, {
+          headers: createAuthHeader(token)
+        });
+        return response.data;
+      } catch (error) {
+        console.error('Record subject attendance API error:', error.response || error);
+        throw error.response ? error.response.data : { message: 'Network error' };
+      }
+    },
+    
+    // Get attendance records for a subject
+    getSubjectAttendance: async (token, subjectId, date = null) => {
+      try {
+        let url = `${API_URL}/teacher/subjects/${subjectId}/attendance`;
+        if (date) {
+          url += `?date=${date}`;
+        }
+        
+        const response = await axios.get(url, {
+          headers: createAuthHeader(token)
+        });
+        return response.data;
+      } catch (error) {
+        console.error('Get subject attendance API error:', error.response || error);
         throw error.response ? error.response.data : { message: 'Network error' };
       }
     }

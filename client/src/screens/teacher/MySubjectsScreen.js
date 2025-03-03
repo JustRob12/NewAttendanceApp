@@ -13,6 +13,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../../api/api';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 
 const MySubjectsScreen = () => {
   const [subjects, setSubjects] = useState([]);
@@ -25,6 +26,7 @@ const MySubjectsScreen = () => {
   const [schedule, setSchedule] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState(null);
+  const navigation = useNavigation();
 
   // Fetch subjects when the component mounts
   useEffect(() => {
@@ -318,6 +320,15 @@ const MySubjectsScreen = () => {
           </TouchableOpacity>
         </View>
       )}
+      
+      {/* Attendance button */}
+      <TouchableOpacity 
+        style={styles.attendanceButton}
+        onPress={() => navigation.navigate('SubjectAttendance', { subject })}
+      >
+        <Ionicons name="calendar-outline" size={16} color="#fff" />
+        <Text style={styles.attendanceButtonText}>Take Attendance</Text>
+      </TouchableOpacity>
       
       <View style={styles.actionButtonsContainer}>
         <TouchableOpacity 
@@ -754,6 +765,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   generateKeyText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  attendanceButton: {
+    backgroundColor: '#4a90e2',
+    padding: 12,
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  attendanceButtonText: {
     color: '#fff',
     fontSize: 14,
     fontWeight: '600',

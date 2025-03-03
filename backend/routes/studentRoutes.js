@@ -25,4 +25,9 @@ router.get('/attendance', studentController.getAttendance);
 // Get student's attendance records for a specific class
 router.get('/attendance/:classId', studentController.getAttendance);
 
+// Subject management routes
+router.get('/subjects', studentController.getEnrolledSubjects);
+router.post('/subjects/search', studentController.searchSubjectByKey);
+router.post('/subjects/enroll', studentController.enrollInSubject);
+
 module.exports = router; 

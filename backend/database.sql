@@ -102,4 +102,19 @@ CREATE TABLE IF NOT EXISTS attendance (
   FOREIGN KEY (student_id) REFERENCES students(id),
   FOREIGN KEY (teacher_id) REFERENCES teachers(id),
   FOREIGN KEY (class_id) REFERENCES classes(id)
+);
+
+-- Create subject_attendance table
+CREATE TABLE IF NOT EXISTS subject_attendance (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  student_id INT NOT NULL,
+  teacher_id INT NOT NULL,
+  subject_id INT NOT NULL,
+  date DATE NOT NULL,
+  status ENUM('present', 'absent', 'late') NOT NULL,
+  notes TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (student_id) REFERENCES students(id),
+  FOREIGN KEY (teacher_id) REFERENCES teachers(id),
+  FOREIGN KEY (subject_id) REFERENCES subjects(id)
 ); 
